@@ -3,19 +3,22 @@
 
 import gym
 import gym_example
+import pdb
 
 
 N_ITER = 10
 
            
 def main ():
-    env = gym.make("example-v0")
+    #env = gym.make("example-v0")
+    env = gym.make("fail-v1")
     #env = gym.make("CartPole-v1")
     env.reset()
 
     for i in range(N_ITER):
         action = env.action_space.sample()
         print("action", action)
+        #breakpoint()
         state, reward, done, info = env.step(action)
 
         print(state, reward, done, info)

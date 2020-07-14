@@ -4,7 +4,7 @@
 from gym_example.envs.example_env import Example_v0
 from ray.tune.registry import register_env
 import gym
-import pprin
+import pprint
 import os
 import ray
 import ray.rllib.agents.ppo as ppo
