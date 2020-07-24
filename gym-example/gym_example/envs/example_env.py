@@ -1,37 +1,53 @@
 from gym import spaces
 from gym.utils import seeding
 import gym
-import numpy as np
 
-# aim to hit the target at 45°
-HI_ANGLE = 60.0
-LO_ANGLE = 20.0
+DEBUG = False # True
+
+
+# possible actions
+MOVE_LF = 0
+STAY = 1
+MOVE_RT = 2
+
+# possible positions
+LF_MOST = 1
+GOAL = 5
+RT_MOST = 9
+
+# aim to land on the GOAL position within MAX_COUNT steps
+MAX_COUNT = 10
+
+# possible rewards
+REWARD_AWAY = -2
+REWARD_NOOP = -1
+REWARD_GOAL = MAX_COUNT
 
 
 class Example_v0 (gym.Env):
     metadata = {"render.modes": ["human"]}
-    reward_range = (-10.0, 90.0)
+    reward_range = (REWARD_AWAY, REWARD_GOAL)
 
 
     def __init__ (self):
-        # NB: the Box bounds for `action_space` must range [-1.0, 1.0]
-        # or sampling breaks during rollout
-        lo = np.float32(40)
-        hi = np.float32(50)
+        # the action space ranges [0, 1, 2] where:
+        #  `0` move left
+        #  `1` stay in position
+        #  `2` move right
+        self.action_space = spaces.Discrete(3)
 
-        self.action_space = spaces.Box(
-            lo,
-            hi,
-            shape=(1,)
-            )
+        # NB: Ray throws exceptions for any `0` value Discrete
+        # observations so we'll make position a 1's based value
+        self.observation_space = spaces.Discrete(RT_MOST + 1)
 
-        self.observation_space = spaces.Box(
-            0.0,
-            1.0,
-            shape=(1,)
-            )
+        # enumerate the possible positions, then chose on reset()
+        self.init_positions = list(range(LF_MOST, RT_MOST))
+        self.init_positions.remove(GOAL)
 
-        self.np_random = None
+        # NB: change this to guarantee the same sequence of
+        # pseudorandom numbers each time (e.g., for debugging)
+        self.seed()
+
         self.reset()
 
 
@@ -43,16 +59,16 @@ class Example_v0 (gym.Env):
         -------
         observation (object): the initial observation of the space.
         """
-        self.seed()
+        self.position = self.np_random.choice(self.init_positions)
+        self.count = 0
 
-        pos = self.np_random.random()
-        self.state = [ pos ]
-
-        self.reward = -100.0
+        # for this environment, state is simply the position
+        self.state = self.position
+        self.reward = 0
         self.done = False
         self.info = {}
 
-        return self.observation_space.sample()
+        return self.state
 
 
     def step (self, action):
@@ -88,34 +104,82 @@ class Example_v0 (gym.Env):
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
+        global DEBUG
+
         if self.done:
-            print("episode done")
-            return [self.state, self.reward, self.done, self.info]
+            # code should never reach this point
+            print("EPISODE DONE!!!")
+
+        elif self.count == MAX_COUNT:
+            self.done = True;
+
+            if DEBUG:
+                print("episode done")
 
         else:
             assert self.action_space.contains(action)
 
-            degree = float(action[0])
-            last_pos = self.state[0]
+            if action == MOVE_LF:
+                if self.position == LF_MOST:
+                    # invalid
+                    self.reward = REWARD_AWAY
+                else:
+                    self.position -= 1
 
-            ## TODO: cal `pos`
+                    if self.position == GOAL:
+                        # on goal now
+                        self.reward = REWARD_GOAL
+                        self.done = 1
+                    elif self.position < GOAL:
+                        # moving away from goal
+                        self.reward = REWARD_AWAY
+                    else:
+                        # moving toward goal
+                        self.reward = REWARD_NOOP
 
-            pos = np.sin(np.deg2rad(degree))
-            miss = abs(pos - np.sin(np.deg2rad(45.0)))
+            elif action == MOVE_RT:
+                if self.position == RT_MOST:
+                    # invalid
+                    self.reward = REWARD_AWAY
+                else:
+                    self.position += 1
 
-            self.state[0] = round(pos, 4)
-            self.info["action"] = round(degree, 4)
-            self.info["miss"] = round(miss, 4)
+                    if self.position == GOAL:
+                        # on goal now
+                        self.reward = REWARD_GOAL
+                        self.done = 1
+                    elif self.position > GOAL:
+                        # moving away from goal
+                        self.reward = REWARD_AWAY
+                    else:
+                        # moving toward goal
+                        self.reward = REWARD_NOOP
 
-            self.render()
+            elif action == STAY:
+                if self.position == GOAL:
+                    # code should never reach here
+                    print("STUCK ON GOAL!!!")
+                    self.reward = REWARD_GOAL
+                    self.done = 1
+                else:
+                    # not moving toward goal
+                    self.reward = REWARD_AWAY
 
-        if miss <= 0.01:
-            # good enough
-            self.reward = 90.0
-            self.done = True;
-        else:
-            # reward is the "nearness" of the blast destroying the target
-            self.reward = round(-90.0 * miss)
+
+            self.count += 1
+            self.state = self.position
+
+            self.info["count"] = self.count
+            self.info["action"] = action
+            self.info["dist"] = GOAL - self.position
+
+            if DEBUG:
+                self.render()
+
+        try:
+            assert self.observation_space.contains(self.state)
+        except AssertionError:
+            print("STATE IS WRONG", self.state)
 
         return [self.state, self.reward, self.done, self.info]
 
@@ -144,7 +208,7 @@ class Example_v0 (gym.Env):
         Args:
             mode (str): the mode to render with
         """
-        print("location:", self.state, self.reward, self.done, self.info)
+        print("position: {:2d}  reward: {:2d}  info: {}".format(self.state, self.reward, self.info))
 
 
     def seed (self, seed=None):
