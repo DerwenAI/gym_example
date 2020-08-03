@@ -1,48 +1,44 @@
-from gym import spaces
-from gym.utils import seeding
 import gym
-
-DEBUG = False # True
-
-
-# possible actions
-MOVE_LF = 0
-STAY = 1
-MOVE_RT = 2
-
-# possible positions
-LF_MOST = 1
-GOAL = 5
-RT_MOST = 9
-
-# aim to land on the GOAL position within MAX_COUNT steps
-MAX_COUNT = 10
-
-# possible rewards
-REWARD_AWAY = -2
-REWARD_NOOP = -1
-REWARD_GOAL = MAX_COUNT
+from gym.utils import seeding
 
 
 class Example_v0 (gym.Env):
+    # possible actions
+    MOVE_LF = 0
+    MOVE_RT = 1
+
+    # possible positions
+    LF_MIN = 1
+    RT_MAX = 10
+
+    # land on the GOAL position within MAX_STEPS steps
+    MAX_STEPS = 10
+
+    # possible rewards
+    REWARD_AWAY = -2
+    REWARD_STEP = -1
+    REWARD_GOAL = MAX_STEPS
+
+
     metadata = {"render.modes": ["human"]}
     reward_range = (REWARD_AWAY, REWARD_GOAL)
 
 
     def __init__ (self):
-        # the action space ranges [0, 1, 2] where:
+        # the action space ranges [0, 1] where:
         #  `0` move left
-        #  `1` stay in position
-        #  `2` move right
-        self.action_space = spaces.Discrete(3)
+        #  `1` move right
+        self.action_space = gym.spaces.Discrete(2)
 
         # NB: Ray throws exceptions for any `0` value Discrete
         # observations so we'll make position a 1's based value
-        self.observation_space = spaces.Discrete(RT_MOST + 1)
+        self.observation_space = gym.spaces.Discrete(self.RT_MAX + 1)
 
         # enumerate the possible positions, then chose on reset()
-        self.init_positions = list(range(LF_MOST, RT_MOST))
-        self.init_positions.remove(GOAL)
+        self.goal = int((self.LF_MIN + self.RT_MAX - 1) / 2)
+
+        self.init_positions = list(range(self.LF_MIN, self.RT_MAX))
+        self.init_positions.remove(self.goal)
 
         # NB: change this to guarantee the same sequence of
         # pseudorandom numbers each time (e.g., for debugging)
@@ -104,82 +100,63 @@ class Example_v0 (gym.Env):
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
-        global DEBUG
-
         if self.done:
             # code should never reach this point
             print("EPISODE DONE!!!")
 
-        elif self.count == MAX_COUNT:
+        elif self.count == self.MAX_STEPS:
             self.done = True;
-
-            if DEBUG:
-                print("episode done")
 
         else:
             assert self.action_space.contains(action)
 
-            if action == MOVE_LF:
-                if self.position == LF_MOST:
+            if action == self.MOVE_LF:
+                if self.position == self.LF_MIN:
                     # invalid
-                    self.reward = REWARD_AWAY
+                    self.reward = self.REWARD_AWAY
                 else:
                     self.position -= 1
 
-                    if self.position == GOAL:
+                    if self.position == self.goal:
                         # on goal now
-                        self.reward = REWARD_GOAL
+                        self.reward = self.REWARD_GOAL
                         self.done = 1
-                    elif self.position < GOAL:
+                    elif self.position < self.goal:
                         # moving away from goal
-                        self.reward = REWARD_AWAY
+                        self.reward = self.REWARD_AWAY
                     else:
                         # moving toward goal
-                        self.reward = REWARD_NOOP
+                        self.reward = self.REWARD_STEP
 
-            elif action == MOVE_RT:
-                if self.position == RT_MOST:
+            elif action == self.MOVE_RT:
+                if self.position == self.RT_MAX:
                     # invalid
-                    self.reward = REWARD_AWAY
+                    self.reward = self.REWARD_AWAY
                 else:
                     self.position += 1
 
-                    if self.position == GOAL:
+                    if self.position == self.goal:
                         # on goal now
-                        self.reward = REWARD_GOAL
+                        self.reward = self.REWARD_GOAL
                         self.done = 1
-                    elif self.position > GOAL:
+                    elif self.position > self.goal:
                         # moving away from goal
-                        self.reward = REWARD_AWAY
+                        self.reward = self.REWARD_AWAY
                     else:
                         # moving toward goal
-                        self.reward = REWARD_NOOP
-
-            elif action == STAY:
-                if self.position == GOAL:
-                    # code should never reach here
-                    print("STUCK ON GOAL!!!")
-                    self.reward = REWARD_GOAL
-                    self.done = 1
-                else:
-                    # not moving toward goal
-                    self.reward = REWARD_AWAY
-
+                        self.reward = self.REWARD_STEP
 
             self.count += 1
             self.state = self.position
 
             self.info["count"] = self.count
             self.info["action"] = action
-            self.info["dist"] = GOAL - self.position
-
-            if DEBUG:
-                self.render()
+            self.info["dist"] = self.goal - self.position
 
         try:
             assert self.observation_space.contains(self.state)
         except AssertionError:
-            print("STATE IS WRONG", self.state)
+            print("INVALID STATE", self.state)
 
         return [self.state, self.reward, self.done, self.info]
 
