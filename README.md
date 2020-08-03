@@ -13,7 +13,7 @@ To initialize and run the `gym` example:
 pip install -r requirements.txt
 pip install -e gym-example
 
-python example.py
+python sample.py
 ```
 
 To run Ray RLlib to train a policy based on this environment:
