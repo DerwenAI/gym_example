@@ -20,8 +20,8 @@ def main ():
     shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
 
 
-    # start Ray
-    ray.init(ignore_reinit_error=True, local_mode=True)
+    # start Ray -- add `local_mode=True` here for debugging
+    ray.init(ignore_reinit_error=True)
 
     # register the custom environment
     select_env = "example-v0"
