@@ -8,7 +8,6 @@ import os
 import ray
 import ray.rllib.agents.ppo as ppo
 import shutil
-import tensorflow as tf
 
 
 def train_policy (agent, path, n_iter=1):

@@ -19,9 +19,9 @@ class Example_v0 (gym.Env):
     REWARD_STEP = -1
     REWARD_GOAL = MAX_STEPS
 
-
-    metadata = {"render.modes": ["human"]}
-    reward_range = (REWARD_AWAY, REWARD_GOAL)
+    metadata = {
+        "render.modes": ["human"]
+        }
 
 
     def __init__ (self):
@@ -34,14 +34,14 @@ class Example_v0 (gym.Env):
         # observations so we'll make position a 1's based value
         self.observation_space = gym.spaces.Discrete(self.RT_MAX + 1)
 
-        # enumerate the possible positions, then chose on reset()
+        # possible positions to chose on `reset()`
         self.goal = int((self.LF_MIN + self.RT_MAX - 1) / 2)
 
         self.init_positions = list(range(self.LF_MIN, self.RT_MAX))
         self.init_positions.remove(self.goal)
 
-        # NB: change this to guarantee the same sequence of
-        # pseudorandom numbers each time (e.g., for debugging)
+        # NB: change to guarantee the sequence of pseudorandom numbers
+        # (e.g., for debugging)
         self.seed()
 
         self.reset()
@@ -73,7 +73,7 @@ class Example_v0 (gym.Env):
 
         Parameters
         ----------
-        action : array[float]
+        action : Discrete
 
         Returns
         -------
@@ -109,6 +109,7 @@ class Example_v0 (gym.Env):
 
         else:
             assert self.action_space.contains(action)
+            self.count += 1
 
             if action == self.MOVE_LF:
                 if self.position == self.LF_MIN:
@@ -146,11 +147,7 @@ class Example_v0 (gym.Env):
                         # moving toward goal
                         self.reward = self.REWARD_STEP
 
-            self.count += 1
             self.state = self.position
-
-            self.info["count"] = self.count
-            self.info["action"] = action
             self.info["dist"] = self.goal - self.position
 
         try:
@@ -185,7 +182,8 @@ class Example_v0 (gym.Env):
         Args:
             mode (str): the mode to render with
         """
-        print("position: {:2d}  reward: {:2d}  info: {}".format(self.state, self.reward, self.info))
+        s = "position: {:2d}  reward: {:2d}  info: {}"
+        print(s.format(self.state, self.reward, self.info))
 
 
     def seed (self, seed=None):
