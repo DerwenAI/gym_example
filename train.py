@@ -10,13 +10,36 @@ import ray.rllib.agents.ppo as ppo
 import shutil
 
 
-def train_policy (agent, path, n_iter=1):
-    status = "{:2d}  reward {:6.2f}/{:6.2f}/{:6.2f}  len {:4.2f}  saved {}"
-    reward_history = []
+def main ():
+    # init directory in which to save checkpoints
+    chkpt_root = "tmp/exa"
+    shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
 
+    # init directory in which to log results
+    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
+    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
+
+
+    # start Ray
+    ray.init(ignore_reinit_error=True, local_mode=True)
+
+    # register the custom environment
+    select_env = "example-v0"
+    register_env(select_env, lambda config: Example_v0())
+
+
+    # configure the environment and create agent
+    config = ppo.DEFAULT_CONFIG.copy()
+    config["log_level"] = "WARN"
+    agent = ppo.PPOTrainer(config, env=select_env)
+
+    status = "{:2d} reward {:6.2f}/{:6.2f}/{:6.2f} len {:4.2f} saved {}"
+    n_iter = 5
+
+    # train a policy with RLlib using PPO
     for n in range(n_iter):
         result = agent.train()
-        chkpt_file = agent.save(path)
+        chkpt_file = agent.save(chkpt_root)
 
         print(status.format(
                 n + 1,
@@ -27,57 +50,34 @@ def train_policy (agent, path, n_iter=1):
                 chkpt_file
                 ))
 
-    return chkpt_file
-
-
-def rollout_actions (agent, env, n_step=1, render=True):
-    state = env.reset()
-    sum_reward = 0
-
-    for step in range(n_step):
-        action = agent.compute_action(state)
-        state, reward, done, info = env.step(action)
-        sum_reward += reward
-
-        if render:
-            env.render()
-
-        if done == 1:
-            print("cumulative reward", sum_reward)
-            state = env.reset()
-            sum_reward = 0
-
-
-if __name__ == "__main__":
-    # start Ray
-    ray.init(ignore_reinit_error=True, local_mode=True)
-
-    # init directory in which to log results
-    ray_results = "{}/ray_results/".format(os.getenv("HOME"))
-    shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
-
-    # init directory in which to save checkpoints
-    CHECKPOINT_ROOT = "tmp/exa"
-    shutil.rmtree(CHECKPOINT_ROOT, ignore_errors=True, onerror=None)
-
-    # configure the environment
-    config = ppo.DEFAULT_CONFIG.copy()
-    config["log_level"] = "WARN"
-
-    # register the custom environment
-    SELECT_ENV = "example-v0"
-    register_env(SELECT_ENV, lambda config: Example_v0())
-
-    # train a policy with RLlib using PPO
-    agent = ppo.PPOTrainer(config, env=SELECT_ENV)
-    chkpt_file = train_policy(agent, CHECKPOINT_ROOT, n_iter=5)
 
     # examine the trained policy
     policy = agent.get_policy()
     model = policy.model
     print(model.base_model.summary())
 
+
     # apply the trained policy in a rollout
     agent.restore(chkpt_file)
-    env = gym.make(SELECT_ENV)
-    rollout_actions(agent, env, n_step=20)
+    env = gym.make(select_env)
+
+    state = env.reset()
+    sum_reward = 0
+    n_step = 20
+
+    for step in range(n_step):
+        action = agent.compute_action(state)
+        state, reward, done, info = env.step(action)
+        sum_reward += reward
+
+        env.render()
+
+        if done == 1:
+            # report at the end of each episode
+            print("cumulative reward", sum_reward)
+            state = env.reset()
+            sum_reward = 0
+
+
+if __name__ == "__main__":
+    main()
