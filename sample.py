@@ -9,7 +9,7 @@ def run_one_episode (env, verbose=False):
     env.reset()
     sum_reward = 0
 
-    for i in range(10):
+    for i in range(env.MAX_STEPS):
         action = env.action_space.sample()
 
         if verbose:
