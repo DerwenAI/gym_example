@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 from gym_example.envs.example_env import Example_v0
+from gym_example.envs.fail1 import Fail_v1
 from ray.tune.registry import register_env
 import gym
 import os
@@ -25,7 +26,9 @@ def main ():
 
     # register the custom environment
     select_env = "example-v0"
+    #select_env = "fail-v1"
     register_env(select_env, lambda config: Example_v0())
+    #register_env(select_env, lambda config: Fail_v1())
 
 
     # configure the environment and create agent
